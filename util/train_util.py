@@ -6,8 +6,30 @@ import torch.nn as nn
 from torch import optim
 from torch.utils import data
 from tqdm import tqdm
+import numpy as np
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from util.util import Progressor
+
+class EarlyStopper:
+    def __init__(self, patience=1, min_delta=0, warmup_epochs=10):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.warmup_epochs = warmup_epochs
+        self.min_validation_loss = np.inf
+
+    def early_stop(self, validation_loss, epoch):
+        if epoch < self.warmup_epochs:
+            return False
+        if validation_loss < self.min_validation_loss:
+            self.min_validation_loss = validation_loss
+            self.counter = 0
+        elif validation_loss > (self.min_validation_loss + self.min_delta):
+            self.counter += 1
+            if self.counter >= self.patience:
+                return True
+        return False
 
 
 def trainIters(model, trainset, validset, train, evaluate, epochs=100, learning_rate=0.01, weight_decay=1e-3, batch_size=32, save_info=None, print_every=1000, device='cuda', log=None):
@@ -22,10 +44,16 @@ def trainIters(model, trainset, validset, train, evaluate, epochs=100, learning_
     
     max_acc = 0
 
+    # Use DataParallel for multiple GPUs
+    if torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model)
+
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     criterion = nn.CrossEntropyLoss()
+    scheduler = ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.1)
     trainloader = data.DataLoader(trainset, batch_size, shuffle = True, pin_memory=True, num_workers=0)
+    early_stopper = EarlyStopper(patience=6, min_delta=0.001)
 
     progress = Progressor('py', total=print_every, log=log)
 
@@ -38,8 +66,13 @@ def trainIters(model, trainset, validset, train, evaluate, epochs=100, learning_
             train_acc += correct
             loss_total += loss*len(input_tensor)
      
-        # evaluate and save model
+        # evaluate
         test_loss, test_acc, _, _ = evaluate(model, validset, device)
+
+        # step the learning rate scheduler
+        scheduler.step(test_loss)
+
+        # save model
         if test_acc > max_acc:
             max_acc = test_acc
             model_name = save_model(model, save_info, test_acc, log)
@@ -56,6 +89,12 @@ def trainIters(model, trainset, validset, train, evaluate, epochs=100, learning_
         # reset tqdm bar
         if progress.count == print_every and i < (epochs-1):
             progress.reset(i)
+
+        # # early stop
+        # if early_stopper.early_stop(test_loss, i):
+        #     tqdm.write("Early stop at epoch %s"%i)
+        #     log.write("Early stop at epoch %s \n"%i)
+        #     break
         
     tqdm.write("The highest accuracy is %s"%max_acc)
     log.write("The highest accuracy is %s\n"%max_acc)
@@ -66,8 +105,8 @@ def save_model(model, save_info, acc, log):
     fold, ckpt_dir = save_info
     now = datetime.now().strftime("%Y_%m_%d %H:%M:%S")
     model_name = "{}/model_{}.ckpt".format(ckpt_dir, fold)
-    tqdm.write("Model {} save at {} with acc: {:.4f}".format(model_name, now, acc))
-    log.write("Model {} save at {} with acc: {:.4f}\n".format(model_name, now, acc))
+    tqdm.write("Model {} saved at {} with acc: {:.4f}".format(model_name, now, acc))
+    log.write("Model {} saved at {} with acc: {:.4f}\n".format(model_name, now, acc))
     torch.save(model.state_dict(), model_name)
     
     return model_name

@@ -2,11 +2,46 @@
 word2vec
 .vscode
 .DS_Store
-data
+
+# Data
 fakenewsnet_dataset
+fakenewsnet_dataset_v2
+fakenewsnet_dataset_v3
+fakenewsnet_dataset_v4
+
+data/gossipcop_no_ignore_en.tsv
+data/gossipcop_no_ignore_s.tsv
+
+data_analysis/*jpg
+data_analysis/*txt
+
+data_visualization/*/*png
+data_visualization/*/*tex
+
 REL
 apicache-py3
-model_ckpts
+
+model_ckpts*
+caption_generation
+
+data/images_with_web_archive_url
+data/images_without_web_archive_url
+data/politifact
+
+data/politifact_v2
+data/politifact_v3
+data/gossipcop
+
+data/*
+
+openai_clip.py
+multi_processing.py
+
+*.pt
+
+# Irrelevant
+IHAN.py
+test.py
 
 # Files
 log.txt
@@ -176,3 +211,16 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+data_analysis/dataset_summary_g.txt
+data_analysis/collage_real_v2.jpg
+output.txt
+data_analysis/collage_fake_gossipcop.jpg
+data_analysis/collage_fake_v2.jpg
+data_analysis/collage_real_gossipcop.jpg
+ikahan_gossipcop.out
+ikahan_politifact_.out
+data_analysis/dataset_summary_p.txt
+data_analysis/collage_fake_v2.jpg
+data_analysis/collage_real_v2.jpg
+results.csv
+data_visualization/average_results.csv
